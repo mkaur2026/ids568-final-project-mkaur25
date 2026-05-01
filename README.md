@@ -1,420 +1,99 @@
-# IDS 568 Milestone 5 — LLM Inference Optimization (Batching + Caching)
+# IDS 568 Final Project
 
 ## Overview
+This project implements a production-ready LLM inference system with monitoring, A/B testing, governance, drift detection, and risk assessment.
 
-This project implements a FastAPI-based LLM inference server with two optimization strategies:
-
-- Dynamic request batching  
-- In-memory caching  
-
-The goal is to improve:
-
-- Throughput  
-- Latency  
-- Cache efficiency  
-- Resource utilization  
-
-A lightweight Hugging Face model (`sshleifer/tiny-gpt2`) is used to ensure stable execution on Mac hardware. The focus of this milestone is system architecture, batching behavior, caching behavior, benchmarking, and governance — not model quality.
+The system is built on top of a FastAPI-based LLM inference server (from Milestone 5) and extends it with full MLOps capabilities required for real-world deployment.
 
 ---
 
-# Repository Structure
-
-```
-ids568-milestone5-mkaur25/
-│
-├── src/
-│   ├── server.py
-│   ├── batching.py
-│   ├── caching.py
-│   └── config.py
-│
-├── benchmarks/
-│   ├── __init__.py
-│   ├── load_generator.py
-│   ├── run_benchmarks.py
-│   └── results/
-│
-├── analysis/
-│   ├── make_charts.py
-│   ├── performance_report.md
-│   ├── performance_report.pdf
-│   ├── governance_memo.md
-│   ├── governance_memo.pdf
-│   └── visualizations/
-│
-├── requirements.txt
-└── README.md
-```
+## System Architecture
+User → FastAPI Server → Batching Layer → LLM Model → Output  
+Monitoring via Prometheus metrics
 
 ---
 
-# Features
+## Components
 
-FastAPI inference API
+### Component 1: Production Monitoring
+- Implemented Prometheus-based monitoring
+- Tracks:
+  - Request count (`llm_requests_total`)
+  - Latency distribution (`llm_request_latency_seconds`)
+- Exposes `/metrics/` endpoint
+- Includes traffic simulation for testing
 
-Dynamic batching:
-- configurable batch size
-- configurable timeout
+### Component 2: A/B Testing
+- Simulated experiment comparing:
+  - Baseline batching vs improved batching
+- Used:
+  - Two-proportion Z-test
+  - t-test for latency
+- Result:
+  - ~4% improvement in success rate
+  - Reduced latency
+- Decision: **Ship treatment**
 
-Caching:
-- TTL expiration
-- max cache size
-- hashed cache keys
+### Component 3: Model Card & Governance
+- Model card documenting:
+  - Model details
+  - Intended use
+  - Limitations and risks
+- Risk register covering:
+  - Performance, reliability, and ethical risks
+- Audit trail for system changes
 
-Benchmarking:
-- synthetic load generator
-- reproducible benchmark runner
+### Component 4: Drift Detection
+- Implemented PSI (Population Stability Index)
+- Result:
+  - PSI = 0.8597 → significant drift
+- Includes visualization of distribution shift
+- Provides recommendations for retraining and monitoring
 
-Performance Analysis:
-- latency measurement
-- throughput measurement
-- cache hit rate
-- memory usage
-
-Visualization:
-- latency charts
-- throughput charts
-- cache hit rate charts
-- memory usage charts
+### Component 5: Risk Assessment
+- System-level risk analysis
+- Covers:
+  - Hallucination risk
+  - Performance risks
+  - Data drift risks
+- Includes:
+  - Risk matrix
+  - Governance review
+  - CTO recommendation memo
 
 ---
 
-# Setup Instructions
+## Setup Instructions
 
-## Step 1 — Clone Repository
-
-```
-git clone <your-repo-url>
-cd ids568-milestone5-mkaur25
-```
-
----
-
-## Step 2 — Create Virtual Environment
-
-```
+```bash
 python3 -m venv .venv
-```
-
-Activate:
-
-Mac / Linux:
-
-```
 source .venv/bin/activate
-```
-
-Windows:
-
-```
-.venv\Scripts\activate
-```
-
----
-
-## Step 3 — Install Dependencies
-
-```
 pip install -r requirements.txt
+python -m uvicorn src.server:app --reload
 ```
 
 ---
 
-# Running the Server
+## Key Features
+- Real-time monitoring with Prometheus metrics
+- Traffic simulation for load testing
+- Statistical A/B testing framework
+- Drift detection using PSI
+- Full governance and documentation
+- Risk analysis and mitigation strategies
 
-Start FastAPI server:
+---
 
-```
-uvicorn src.server:app --reload
-```
+## Reproducibility
 
-Server runs at:
+Run the following scripts:
 
-```
-http://127.0.0.1:8000
+```bash
+python src/monitoring/generate_traffic.py
+python src/ab_test/simulation.py
+python src/drift/drift_detection.py
 ```
 
 ---
 
-# Test the Server
 
-Health Check:
-
-```
-curl http://127.0.0.1:8000/
-```
-
-Generate Request:
-
-```
-curl -X POST http://127.0.0.1:8000/generate \
--H "Content-Type: application/json" \
--d '{"prompt":"Explain machine learning in one sentence.","max_tokens":20,"temperature":0.0}'
-```
-
----
-
-# Caching Behavior
-
-Caching is enabled only when:
-
-```
-temperature = 0.0
-```
-
-Caching is disabled when:
-
-```
-temperature > 0
-```
-
-Cache characteristics:
-
-- hashed keys  
-- TTL expiration  
-- max entry limit  
-- in-memory store  
-
----
-
-# Configuration
-
-Config file:
-
-```
-src/config.py
-```
-
-Configurable parameters:
-
-- model_name  
-- default_temperature  
-- default_max_new_tokens  
-- max_batch_size  
-- batch_timeout_seconds  
-- cache_ttl_seconds  
-- cache_max_entries  
-- host  
-- port  
-
----
-
-# Running Benchmarks
-
-Keep server running, then execute:
-
-```
-python benchmarks/run_benchmarks.py --run_all
-```
-
-This runs:
-
-- low load cached  
-- medium load cached  
-- high load cached  
-- low load noncached  
-- medium load noncached  
-
----
-
-# Benchmark Results Location
-
-Results saved in:
-
-```
-benchmarks/results/
-```
-
-Generated files:
-
-- CSV request logs  
-- JSON summary files  
-- Combined summary file  
-
----
-
-# Generate Charts
-
-After benchmarks finish:
-
-```
-python analysis/make_charts.py
-```
-
-Charts saved in:
-
-```
-analysis/visualizations/
-```
-
-Charts generated:
-
-- latency_by_experiment.png  
-- throughput_by_experiment.png  
-- cache_hit_rate.png  
-- memory_usage.png  
-
----
-
-# Performance Metrics Collected
-
-Latency Metrics:
-- average latency  
-- min latency  
-- max latency  
-
-Throughput:
-- requests per second  
-
-Caching:
-- cache hit rate  
-
-Memory:
-- memory before  
-- memory after  
-- memory delta  
-
----
-
-# System Architecture
-
-Request Flow:
-
-Client  
-→ FastAPI  
-→ Cache Check  
-→ Batch Queue  
-→ Model Inference  
-→ Cache Store  
-→ Response  
-
----
-
-# Batching Behavior
-
-Batch triggers when:
-
-- batch size reached  
-OR  
-- timeout reached  
-
-Benefits:
-
-- improved throughput  
-- reduced compute overhead  
-- better concurrency handling  
-
-Trade-off:
-
-- slightly increased latency  
-
----
-
-# Caching Behavior
-
-Cache improves:
-
-- repeated request latency  
-- throughput  
-
-Trade-off:
-
-- memory usage  
-- stale response risk  
-
----
-
-# Governance Considerations
-
-Caching risks:
-
-- storing sensitive prompts  
-- stale outputs  
-- data retention concerns  
-
-Mitigation:
-
-- TTL expiration  
-- hashed keys  
-- bounded cache size  
-- deterministic caching only  
-
-Governance memo located at:
-
-```
-analysis/governance_memo.md
-analysis/governance_memo.pdf
-```
-
----
-
-# Performance Report
-
-Performance report located at:
-
-```
-analysis/performance_report.md
-analysis/performance_report.pdf
-```
-
----
-
-# Dependencies
-
-Key libraries:
-
-- FastAPI  
-- Uvicorn  
-- Transformers  
-- Torch  
-- httpx  
-- psutil  
-- matplotlib  
-- numpy  
-
----
-
-# Reproducibility
-
-To reproduce:
-
-Start server:
-
-```
-uvicorn src.server:app --reload
-```
-
-Run benchmarks:
-
-```
-python benchmarks/run_benchmarks.py --run_all
-```
-
-Generate charts:
-
-```
-python analysis/make_charts.py
-```
-
----
-
-# Notes
-
-Small model used for Mac stability:
-
-```
-sshleifer/tiny-gpt2
-```
-
-Focus of milestone:
-
-- batching optimization  
-- caching optimization  
-- benchmarking  
-- governance  
-- performance evaluation  
-
-Not model accuracy.
-
----
