@@ -1,0 +1,20 @@
+[
+  {
+    "event_id": "1",
+    "event_type": "MODEL_DEPLOYED",
+    "timestamp": "2026-05-01T12:00:00",
+    "details": "Initial deployment of LLM inference server"
+  },
+  {
+    "event_id": "2",
+    "event_type": "MONITORING_ADDED",
+    "timestamp": "2026-05-01T12:30:00",
+    "details": "Prometheus metrics added to server"
+  },
+  {
+    "event_id": "3",
+    "event_type": "AB_TEST_COMPLETED",
+    "timestamp": "2026-05-01T13:00:00",
+    "details": "A/B test simulation completed for batching optimization"
+  }
+]
