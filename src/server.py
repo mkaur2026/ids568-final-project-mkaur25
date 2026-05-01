@@ -7,6 +7,7 @@ import torch
 from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from prometheus_client import Counter, Histogram, make_asgi_app
 
 from src.config import settings
 from src.caching import cache
@@ -14,7 +15,23 @@ from src.batching import DynamicBatcher
 
 
 # ----------------------------
-# Use smaller safer model
+# Monitoring Metrics
+# ----------------------------
+REQUEST_COUNT = Counter(
+    "llm_requests_total",
+    "Total number of LLM requests",
+    ["status"]
+)
+
+REQUEST_LATENCY = Histogram(
+    "llm_request_latency_seconds",
+    "LLM request latency in seconds",
+    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+)
+
+
+# ----------------------------
+# Model Setup
 # ----------------------------
 MODEL_NAME = "sshleifer/tiny-gpt2"
 
@@ -126,6 +143,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
 
 @app.get("/")
 async def root():
@@ -140,54 +161,56 @@ async def generate(request: GenerateRequest):
 
     start_time = time.time()
 
-    use_cache = (
-        settings.enable_cache and
-        request.temperature == 0.0
-    )
+    try:
+        use_cache = (
+            settings.enable_cache and
+            request.temperature == 0.0
+        )
 
-    # Cache check
-    if use_cache:
-        cached_result = cache.get(
+        if use_cache:
+            cached_result = cache.get(
+                prompt=request.prompt,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens
+            )
+
+            if cached_result is not None:
+                latency = time.time() - start_time
+
+                REQUEST_LATENCY.observe(latency)
+                REQUEST_COUNT.labels(status="success").inc()
+
+                return GenerateResponse(
+                    generated_text=cached_result,
+                    cached=True,
+                    latency_ms=round(latency * 1000, 2)
+                )
+
+        result = await batcher.submit(
             prompt=request.prompt,
             temperature=request.temperature,
             max_tokens=request.max_tokens
         )
 
-        if cached_result is not None:
-            latency = round(
-                (time.time() - start_time) * 1000,
-                2
+        if use_cache:
+            cache.set(
+                prompt=request.prompt,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                value=result
             )
 
-            return GenerateResponse(
-                generated_text=cached_result,
-                cached=True,
-                latency_ms=latency
-            )
+        latency = time.time() - start_time
 
-    # Batch submit
-    result = await batcher.submit(
-        prompt=request.prompt,
-        temperature=request.temperature,
-        max_tokens=request.max_tokens
-    )
+        REQUEST_LATENCY.observe(latency)
+        REQUEST_COUNT.labels(status="success").inc()
 
-    # Cache store
-    if use_cache:
-        cache.set(
-            prompt=request.prompt,
-            temperature=request.temperature,
-            max_tokens=request.max_tokens,
-            value=result
+        return GenerateResponse(
+            generated_text=result,
+            cached=False,
+            latency_ms=round(latency * 1000, 2)
         )
 
-    latency = round(
-        (time.time() - start_time) * 1000,
-        2
-    )
-
-    return GenerateResponse(
-        generated_text=result,
-        cached=False,
-        latency_ms=latency
-    )
+    except Exception as e:
+        REQUEST_COUNT.labels(status="error").inc()
+        raise e
