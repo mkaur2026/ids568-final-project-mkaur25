@@ -27,6 +27,8 @@ Each group contains 1000 simulated requests.
 
 The sample size was chosen to ensure sufficient statistical power to detect a small improvement (~4% lift in success rate).
 
+The sample size ensures sufficient statistical power to detect small effect sizes while minimizing Type II error.
+
 ## Statistical Evaluation
 A two-proportion Z-test is used to compare success rates between control and treatment groups.
 

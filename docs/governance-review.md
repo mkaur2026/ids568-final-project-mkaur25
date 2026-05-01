@@ -20,3 +20,4 @@
 
 ## Summary
 The system has low compliance risk but high reliability risk due to model limitations.
+A key system-level risk arises from the interaction between batching, caching, and inference, where delayed responses or cached outputs may impact perceived reliability under dynamic workloads.
