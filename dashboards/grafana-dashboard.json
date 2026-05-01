@@ -1,0 +1,26 @@
+{
+  "title": "LLM Inference Monitoring Dashboard",
+  "panels": [
+    {
+      "title": "Total LLM Requests",
+      "type": "stat",
+      "query": "llm_requests_total"
+    },
+    {
+      "title": "Request Latency Histogram",
+      "type": "histogram",
+      "query": "llm_request_latency_seconds_bucket"
+    },
+    {
+      "title": "Successful Request Rate",
+      "type": "timeseries",
+      "query": "rate(llm_requests_total{status=\"success\"}[5m])"
+    },
+    {
+      "title": "P95 Latency",
+      "type": "timeseries",
+      "query": "histogram_quantile(0.95, rate(llm_request_latency_seconds_bucket[5m]))"
+    }
+  ],
+  "description": "Dashboard configuration for monitoring the Milestone 5 LLM inference API using Prometheus metrics."
+}
